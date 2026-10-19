@@ -102,6 +102,7 @@ Do not modify directly.*
   * <a href="#com.microsoft.QLinearSoftmax">com.microsoft.QLinearSoftmax</a>
   * <a href="#com.microsoft.QLinearWhere">com.microsoft.QLinearWhere</a>
   * <a href="#com.microsoft.QMoE">com.microsoft.QMoE</a>
+  * <a href="#com.microsoft.QMoEOffload">com.microsoft.QMoEOffload</a>
   * <a href="#com.microsoft.QOrderedAttention">com.microsoft.QOrderedAttention</a>
   * <a href="#com.microsoft.QOrderedGelu">com.microsoft.QOrderedGelu</a>
   * <a href="#com.microsoft.QOrderedLayerNormalization">com.microsoft.QOrderedLayerNormalization</a>
@@ -6397,6 +6398,161 @@ This version of the operator has been available since version 1 of the 'com.micr
 <dd>Constrain scale types. Float tensors are used for integer quantization and FP8 square-block scales. Float8e8m0 tensors are used for MXFP4 block scales; float8e4m3fn tensors are used for NVFP4 block scales.</dd>
 <dt><tt>T4</tt> : tensor(float)</dt>
 <dd>Constrain FP4 global scale type to float32 tensors.</dd>
+</dl>
+
+
+### <a name="com.microsoft.QMoEOffload"></a><a name="com.microsoft.qmoeoffload">**com.microsoft.QMoEOffload**</a>
+
+  Opt-in bounded eager CUDA W4A16/NVFP4 MoE with CPU expert offload and GPU resident cache/streaming.
+
+#### Version
+
+This version of the operator has been available since version 1 of the 'com.microsoft' operator set.
+
+#### Attributes
+
+<dl>
+<dt><tt>activation_alpha</tt> : float</dt>
+<dd>SwiGLU alpha.</dd>
+<dt><tt>activation_beta</tt> : float</dt>
+<dd>SwiGLU beta.</dd>
+<dt><tt>activation_type</tt> : string</dt>
+<dd>Only swiglu is supported.</dd>
+<dt><tt>allow_cuda_graph</tt> : int</dt>
+<dd>Allow CUDA graph capture on async decode path when 1.</dd>
+<dt><tt>async_max_tokens</tt> : int</dt>
+<dd>Optional async execution token cap (v3 F7).</dd>
+<dt><tt>block_size</tt> : int</dt>
+<dd>32 for symmetric INT4 or MXFP4, or 16 for NVFP4.</dd>
+<dt><tt>deterministic_replay</tt> : int</dt>
+<dd>Optional deterministic replay mode (0 or 1).</dd>
+<dt><tt>expert_wave_size</tt> : int</dt>
+<dd>Maximum staged experts per wave, in [1,E-1]. Larger selected unions use waves.</dd>
+<dt><tt>expert_weight_bits</tt> : int</dt>
+<dd>Must be 4.</dd>
+<dt><tt>gpu_working_bytes</tt> : int</dt>
+<dd>Upper bound on allocator-backed GPU scratch, excluding input/output tensors and physical arena rounding. The shared device ledger enforces physical allocation limits.</dd>
+<dt><tt>hidden_size</tt> : int</dt>
+<dd>Required positive hidden dimension for shared expert blocks.</dd>
+<dt><tt>host_complement_mode</tt> : int</dt>
+<dd>Keep only non-resident experts in host RAM with D2H eviction writeback when 1.</dd>
+<dt><tt>initial_experts</tt> : list of ints</dt>
+<dd>Optional profile-seeded initial GPU-resident expert IDs for this layer.</dd>
+<dt><tt>inter_size</tt> : int</dt>
+<dd>Required positive intermediate dimension for shared expert blocks.</dd>
+<dt><tt>k</tt> : int</dt>
+<dd>Number of experts selected per token, in [1,E].</dd>
+<dt><tt>layer_index</tt> : int</dt>
+<dd>Required namespace-local nonnegative layer index for shared mode.</dd>
+<dt><tt>layout_id</tt> : string</dt>
+<dd>Optional layout identity for v3 shared schema.</dd>
+<dt><tt>layout_version</tt> : int</dt>
+<dd>SharedExpertBlockV1 requires 1 and expert_blocks; omit for legacy banks.</dd>
+<dt><tt>max_sync_tile_tokens</tt> : int</dt>
+<dd>Optional sync tile token cap (v3 F7).</dd>
+<dt><tt>normalize_routing_weights</tt> : int</dt>
+<dd>Normalize the original full-pool top-k weights (0 or 1).</dd>
+<dt><tt>packing_layout</tt> : string</dt>
+<dd>Packing identity.</dd>
+<dt><tt>pinned_staging_bytes</tt> : int</dt>
+<dd>Upper bound on the single-slot pinned ring including route readback metadata, per operator instance. Pageable CPU banks are not pinned.</dd>
+<dt><tt>prefill_chunk_tokens</tt> : int</dt>
+<dd>Optional prefill chunk token cap (v3 F7).</dd>
+<dt><tt>quant_type</tt> : string</dt>
+<dd>int, nvfp4, or mxfp4 (fp4).</dd>
+<dt><tt>resident_slots</tt> : int</dt>
+<dd>Optional per-layer resident GPU expert capacity.</dd>
+<dt><tt>spare_slots</tt> : int</dt>
+<dd>Optional per-layer spare GPU physical slots.</dd>
+<dt><tt>ssd_cache_slots</tt> : int</dt>
+<dd>Bounded host RAM cache slots when backing cold experts from SSD (0 = disabled).</dd>
+<dt><tt>ssd_store_path</tt> : string</dt>
+<dd>Optional file path for SSD-backed cold expert storage.</dd>
+<dt><tt>stream_min_rows</tt> : int</dt>
+<dd>Optional minimum routed rows to stream a cold expert on GPU.</dd>
+<dt><tt>stream_min_tokens</tt> : int</dt>
+<dd>Optional GPU streaming token threshold (v3 F7).</dd>
+<dt><tt>stream_rows</tt> : int</dt>
+<dd>Optional prefill streaming tile row count.</dd>
+<dt><tt>stream_wave</tt> : int</dt>
+<dd>Optional maximum cold experts per GPU streaming wave.</dd>
+<dt><tt>swiglu_fusion</tt> : int</dt>
+<dd>Must be 1: fused interleaved gate/up.</dd>
+<dt><tt>swiglu_limit</tt> : float</dt>
+<dd>Optional nonnegative SwiGLU clamp limit.</dd>
+<dt><tt>token_tile_size</tt> : int</dt>
+<dd>Maximum tokens routed per tile; positive, independent of input token count.</dd>
+<dt><tt>weights_prepacked</tt> : int</dt>
+<dd>-1 or 1 accepts prepacked bytes; 0/raw is unsupported.</dd>
+</dl>
+
+#### Inputs (2 - 17)
+
+<dl>
+<dt><tt>input</tt> : T</dt>
+<dd>CUDA FP16/BF16 [tokens,H] or [batch,sequence,H].</dd>
+<dt><tt>router_probs</tt> : T</dt>
+<dd>CUDA FP16/BF16 logits [flattened_tokens,E].</dd>
+<dt><tt>fc1_experts_weights</tt> (optional) : T1</dt>
+<dd>CPU expert_blocks [E,stride] in v3 compact shared mode, or CPU FC1 weights in bank mode.</dd>
+<dt><tt>fc1_scales</tt> (optional) : T2</dt>
+<dd>CUDA fc2_bias [E,H] in v3 compact shared mode, or CPU FC1 scales in bank mode.</dd>
+<dt><tt>fc1_experts_bias</tt> (optional) : T3</dt>
+<dd>Optional CUDA int8 phase [T] in v3 compact shared mode, or CPU FC1 bias in bank mode.</dd>
+<dt><tt>fc2_experts_weights</tt> (optional) : T1</dt>
+<dd>CPU FC2 weights in bank mode; omit in shared mode.</dd>
+<dt><tt>fc2_scales</tt> (optional) : T2</dt>
+<dd>CPU FC2 scales in bank mode.</dd>
+<dt><tt>fc2_experts_bias</tt> (optional) : T</dt>
+<dd>Optional FC2 bias [E,H].</dd>
+<dt><tt>fc3_experts_weights</tt> (optional) : T1</dt>
+<dd>Unsupported; must be omitted.</dd>
+<dt><tt>fc3_scales</tt> (optional) : T2</dt>
+<dd>Unsupported; must be omitted.</dd>
+<dt><tt>fc3_experts_bias</tt> (optional) : T</dt>
+<dd>Unsupported; must be omitted.</dd>
+<dt><tt>fc1_zero_points</tt> (optional) : T1</dt>
+<dd>Unsupported; symmetric only.</dd>
+<dt><tt>fc2_zero_points</tt> (optional) : T1</dt>
+<dd>Unsupported; symmetric only.</dd>
+<dt><tt>fc3_zero_points</tt> (optional) : T1</dt>
+<dd>Unsupported; must be omitted.</dd>
+<dt><tt>router_weights</tt> (optional) : T</dt>
+<dd>Optional/ignored for NVFP4 compatibility; unsupported in INT4.</dd>
+<dt><tt>fc1_global_scale</tt> (optional) : T4</dt>
+<dd>CPU float [E] FC1 global scale for NVFP4; unsupported in INT4.</dd>
+<dt><tt>fc2_global_scale</tt> (optional) : T4</dt>
+<dd>CPU float [E] FC2 global scale for NVFP4; unsupported in INT4.</dd>
+</dl>
+
+#### Outputs (1 - 4)
+
+<dl>
+<dt><tt>output</tt> : T</dt>
+<dd>CUDA FP16/BF16, same shape as input.</dd>
+<dt><tt>route_rows</tt> (optional) : TI</dt>
+<dd>Optional CPU int32 [5,E] logical route counts.</dd>
+<dt><tt>route_calls</tt> (optional) : TI</dt>
+<dd>Optional CPU int32 [5,E] invocation-level expert activation indicators.</dd>
+<dt><tt>call_counts</tt> (optional) : TI</dt>
+<dd>Optional CPU int32 [6]: tokens by phase and staged expert uploads.</dd>
+</dl>
+
+#### Type Constraints
+
+<dl>
+<dt><tt>T</tt> : tensor(float16), tensor(bfloat16)</dt>
+<dd>FP16 or BF16 activations and router logits.</dd>
+<dt><tt>T1</tt> : tensor(uint8)</dt>
+<dd>Packed uint8 expert banks or blocks.</dd>
+<dt><tt>T2</tt> : tensor(float16), tensor(bfloat16), tensor(float8e8m0), tensor(float8e4m3fn)</dt>
+<dd>FP16/BF16 scales or fc2_bias, Float8E8M0 MXFP4 block scales, or Float8E4M3FN NVFP4 block scales.</dd>
+<dt><tt>T3</tt> : tensor(float16), tensor(bfloat16), tensor(int8)</dt>
+<dd>FP16/BF16 FC1 bias or int8 token_phase in v3 compact shared mode.</dd>
+<dt><tt>T4</tt> : tensor(float)</dt>
+<dd>FP32 global scales.</dd>
+<dt><tt>TI</tt> : tensor(int32)</dt>
+<dd>Routing statistics.</dd>
 </dl>
 
 
